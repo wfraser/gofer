@@ -1,0 +1,11 @@
+[package]
+name = "gofer"
+version = "0.1.0"
+authors = ["Bill Fraser <wfraser@codewise.org>"]
+edition = "2018"
+
+[dependencies]
+bytes = "0.5"
+thiserror = "1.0"
+tokio = { version = "0.2", features = ["dns", "io-util", "macros", "tcp"] }
+tokio-util = { version = "0.3", features = ["codec"] }
