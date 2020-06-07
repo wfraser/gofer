@@ -1,0 +1,2 @@
+server_address = "0.0.0.0:70"
+document_root = "."
