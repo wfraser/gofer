@@ -13,19 +13,22 @@ i
 iMaking a gopher out of Fe O .
 i                         2 3
 i
-iThis is a hand-written menu. If a selector points to a directory with a file named !menu, it will
-ibe read and interpreted as a menu.
+iThis is a hand-written menu. If a selector points to a directory with
+ia file named !menu, it will be read and interpreted as a menu.
 iIt allows a couple shortcuts to make life easier:
-i - 'i' info lines don't need to have a selector, host, and port specified; the server will make
-i   one up for you.
-i - Links that don't have a server and port specified will be filled in with the server's own
-i   hostname and port. In other words, links are site-internal by default.
+i - 'i' info lines don't need to have a selector, host, and port
+i   specified; the server will make one up for you.
+i - Links that don't have a server and port specified will be filled in
+i   with the server's own hostname and port. In other words, links are
+i   site-internal by default.
 i - Blank lines are valid, and will be sent as an empty 'i' line.
-i - Do note that the file does need to be DOS-formatted, i.e. have CR-LF line endings.
+i - Do note that the file does need to be DOS-formatted, i.e. have
+i   CR-LF line endings.
 i
-iIf a directory does not have a !menu file, a directory listing will be generated from the files
-iin it, on the fly. Currently it just generates '0' (directory) and '1' (file) items, but it could
-ibe extended to recognize images and other file types some day.
+iIf a directory does not have a !menu file, a directory listing will be
+igenerated from the files in it, on the fly. Currently it just
+igenerates '0' (directory) and '1' (file) items, but it could be
+iextended to recognize images and other file types some day.
 i
 iYou can browse the source code of the server here:
 1Source Code	/src
