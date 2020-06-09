@@ -5,11 +5,18 @@ mod response;
 mod types;
 
 use anyhow::{bail, Context, Result};
+use crate::config::Config;
 use crate::request::Request;
 use crate::request_stream::RequestStream;
-use tokio::io::AsyncWriteExt;
+use crate::response::{Response, Menu, MenuItem, MenuItemDecoder};
+use crate::types::ItemType;
+use futures::stream::StreamExt;
+use std::path::Path;
+use tokio::fs::{self, File};
+use tokio::io;
+use tokio_util::codec::FramedRead;
 
-fn parse_args() -> Result<config::Config> {
+fn parse_args() -> Result<Config> {
     match std::env::args_os().nth(1) {
         Some(path) => {
             let text = std::fs::read_to_string(&path)
@@ -24,6 +31,118 @@ fn parse_args() -> Result<config::Config> {
     }
 }
 
+async fn handle_request(config: &Config, req: Request) -> Response {
+    let path = if req.selector.is_empty() {
+        config.document_root.clone()
+    } else if req.selector.starts_with('/') {
+        if req.selector == "/.." || req.selector.contains("/../") {
+            return Response::Error("directory traversal denied".into());
+        }
+        config.document_root.join(&req.selector[1..])
+    } else {
+        return Response::Error("not found".into());
+    };
+
+    eprintln!("looking up {:?}", path);
+    let meta = match fs::metadata(&path).await {
+        Ok(meta) => meta,
+        Err(e) => return e.into(),
+    };
+
+    if meta.is_dir() {
+        let menu_path = path.join("!menu");
+        match File::open(&menu_path).await {
+            Ok(mut menu_file) => {
+                let mut menu = Menu { items: vec![] };
+                let mut framed = FramedRead::new(&mut menu_file, MenuItemDecoder::new());
+                let mut line = 0u32;
+                while let Some(item_result) = framed.next().await {
+                    line += 1;
+                    match item_result {
+                        Ok(mut item) => {
+                            if item.typ != ItemType::Info && item.typ != ItemType::Error {
+                                if item.host.is_none() {
+                                    item.host = Some(config.hostname.clone());
+                                }
+                                if item.port.is_none() {
+                                    item.port = Some(config.port.to_string());
+                                }
+                            }
+                            menu.items.push(item);
+                        }
+                        Err(e) => {
+                            eprintln!("error in {:?} on line {}: {}",
+                                menu_path,
+                                line,
+                                e);
+                        }
+                    }
+                }
+                Response::Menu(menu)
+            }
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {
+                generate_menu(config, &path, &req.selector).await
+            }
+            Err(e) => {
+                e.into()
+            }
+        }
+    } else {
+        match tokio::fs::File::open(&path).await {
+            Ok(file) => Response::File(file),
+            Err(e) if e.kind() == io::ErrorKind::NotFound => Response::Error("not found".into()),
+            Err(e) => e.into(),
+        }
+    }
+}
+
+async fn generate_menu(config: &Config, path: &Path, selector: &str) -> Response {
+    match fs::read_dir(path).await {
+        Ok(mut stream) => {
+            let mut menu = Menu { items: vec![] };
+            while let Some(entry_result) = stream.next().await {
+                match entry_result {
+                    Ok(entry) => {
+                        let is_dir = match entry.file_type()
+                            .await
+                            .map(|ft| ft.is_dir())
+                        {
+                            Ok(b) => b,
+                            Err(e) => {
+                                eprintln!("error getting file type of {:?}: {}", entry.path(), e);
+                                continue;
+                            }
+                        };
+
+                        // TODO: if it's not representable as UTF-8, this will be bad.
+                        let text = entry.file_name().to_string_lossy().into_owned();
+                        let selector = selector.to_owned() + "/" + &text;
+                        let typ = if is_dir {
+                            ItemType::Directory
+                        } else {
+                            // TODO: file types for images, audio, etc. based on extensions.
+                            ItemType::File
+                        };
+                        menu.items.push(
+                            MenuItem::new(
+                                typ,
+                                text,
+                                selector,
+                                config.hostname.clone(),
+                                config.port.to_string()));
+                    }
+                    Err(e) => {
+                        eprintln!("error iterating directory {:?}: {}", path, e);
+                        continue;
+                    }
+                }
+            }
+            Response::Menu(menu)
+        }
+        Err(e) => e.into(),
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let config = parse_args()?;
@@ -33,21 +152,15 @@ async fn main() -> Result<()> {
     eprintln!("listening for connections at {}", config.server_address);
 
     loop {
-        use response::{Response, Menu, MenuItem};
-        use types::ItemType;
         let (req, tx) = incoming.next_request().await;
         let mut response = match req {
-            Ok(Request { selector }) => {
-                eprintln!("selector: {}", selector);
-                Response::Menu(Menu { items: vec![
-                    MenuItem::info("ok!"),
-                    MenuItem::info(selector),
-                    MenuItem::new(ItemType::File, "cool file", "/foobar.txt", "localhost", "7070"),
-                ]})
+            Ok(req) => {
+                eprintln!("selector: {}", req.selector);
+                handle_request(&config, req).await
             }
             Err(e) => {
                 eprintln!("error: {:?}", e);
-                Response::Error(format!("Request error: {:?}", e))
+                Response::Error(format!("Bad request: {:?}", e))
             }
         };
         if let Err(e) = response.write(tx).await {

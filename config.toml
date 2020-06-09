@@ -1,2 +1,11 @@
+# Address the server should bind to.
 server_address = "0.0.0.0:7070"
+
+# Path to the directory to serve files from.
 document_root = "."
+
+# Externally-reachable hostname, used to generate menus for directories.
+hostname = "localhost"
+
+# Externally-reachable port, used to generate menus for directories.
+port = 7070

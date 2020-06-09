@@ -14,6 +14,14 @@ pub enum Response {
     Error(String),
 }
 
+impl From<io::Error> for Response {
+    fn from(e: io::Error) -> Response {
+        eprintln!("I/O error: {}", e);
+        // Don't leak details of the error to clients.
+        Response::Error("I/O error".to_owned())
+    }
+}
+
 #[derive(Debug)]
 pub struct MenuItem {
     pub typ: ItemType,
@@ -91,7 +99,7 @@ impl Encoder<&MenuItem> for MenuItemEncoder {
     }
 }
 
-struct MenuItemDecoder {
+pub struct MenuItemDecoder {
     partial: Option<
         (ItemType, Option<
             (String /* text */, Option<
@@ -162,6 +170,7 @@ impl Decoder for MenuItemDecoder {
                     if buf.len() >= 2 && &buf[0..2] == b"\r\n" {
                         // special case
                         buf.advance(2);
+                        self.next_index = 0;
                         return Ok(Some(MenuItem {
                             typ: ItemType::Info,
                             text: String::new(),
@@ -193,6 +202,7 @@ impl Decoder for MenuItemDecoder {
                     if &buf[self.next_index - 1 .. self.next_index + 1] == b"\r\n" {
                         // End of line, using empty selector, host & port
                         buf.advance(self.next_index + 1);
+                        self.next_index = 0;
                         return Ok(Some(MenuItem {
                             typ,
                             text,
@@ -213,6 +223,7 @@ impl Decoder for MenuItemDecoder {
                     if &buf[self.next_index - 1 .. self.next_index + 1] == b"\r\n" {
                         // End of line, using empty host & port
                         buf.advance(self.next_index + 1);
+                        self.next_index = 0;
                         return Ok(Some(MenuItem {
                             typ,
                             text,
