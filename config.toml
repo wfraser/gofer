@@ -2,7 +2,7 @@
 server_address = "0.0.0.0:7070"
 
 # Path to the directory to serve files from.
-document_root = "."
+document_root = "./demo"
 
 # Externally-reachable hostname, used to generate menus for directories.
 hostname = "localhost"

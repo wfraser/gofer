@@ -11,6 +11,7 @@ use tokio_util::codec::{Decoder, Encoder, FramedWrite};
 pub enum Response {
     Menu(Menu),
     File(File),
+    Raw(Vec<u8>),
     Error(String),
 }
 
@@ -69,6 +70,9 @@ impl Response {
             }
             Response::File(f) => {
                 io::copy(f, &mut w).await?;
+            }
+            Response::Raw(bytes) => {
+                io::copy(&mut std::io::Cursor::new(bytes), &mut w).await?;
             }
             Response::Error(msg) => {
                 w.write_all(&[ItemType::Error.into_u8()]).await?;

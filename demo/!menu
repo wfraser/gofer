@@ -1,0 +1,22 @@
+iHello there!
+i~~~~~~~~~~~~
+i
+i GGGG         FFFFFF
+iG             FF    
+iG             FF    EEEE
+iG GGG   OOO   FFFFF EE    RRRR
+iG   G  O   O  FF    EEEE  R
+iG   G  O   O  FF    EE    R
+i GGG    OOO   FF    EEEE  R
+i              ~~~~~~~~~~
+i
+iMaking a gopher out of Fe O .
+i                         2 3
+i
+1Source Code	/src
+i
+iThe following item links to HTTP using a 'h' type item and a URL:
+hGitHub link via URL	URL:https://github.com/wfraser/gofer.git
+i
+iThis item links to HTTP using a selector with a HTTP/0.9 GET request:
+hGithub link via direct GET request	GET /wfraser/gofer.git	github.com	80
