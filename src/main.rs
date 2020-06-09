@@ -1,6 +1,7 @@
 mod config;
 mod request;
 mod request_stream;
+mod response;
 mod types;
 
 use anyhow::{bail, Context, Result};
@@ -32,18 +33,25 @@ async fn main() -> Result<()> {
     eprintln!("listening for connections at {}", config.server_address);
 
     loop {
-        match incoming.next_request().await {
-            (Ok(Request { selector }), mut tx) => {
-                eprintln!("selector: {}", selector);        
-                tx.write_all(b"iok!\r\ni").await?;
-                tx.write_all(selector.as_bytes()).await?;
-                tx.write_all(b"\r\n").await?;
+        use response::{Response, Menu, MenuItem};
+        use types::ItemType;
+        let (req, tx) = incoming.next_request().await;
+        let mut response = match req {
+            Ok(Request { selector }) => {
+                eprintln!("selector: {}", selector);
+                Response::Menu(Menu { items: vec![
+                    MenuItem::info("ok!"),
+                    MenuItem::info(selector),
+                    MenuItem::new(ItemType::File, "cool file", "/foobar.txt", "localhost", "7070"),
+                ]})
             }
-            (Err(e), mut tx) => {
+            Err(e) => {
                 eprintln!("error: {:?}", e);
-                tx.write_all(b"3Request Error\r\n3").await?;
-                tx.write_all(format!("{:?}", e).as_bytes()).await?;
+                Response::Error(format!("Request error: {:?}", e))
             }
+        };
+        if let Err(e) = response.write(tx).await {
+            eprintln!("error writing response: {}", e);
         }
     }
 }

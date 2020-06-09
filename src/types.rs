@@ -1,3 +1,4 @@
+#[derive(Debug, Copy, Clone)]
 pub enum ItemType {
     // RFC 1436:
     File,
