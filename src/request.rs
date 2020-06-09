@@ -19,9 +19,6 @@ pub enum RequestError {
     #[error("Request line too long")]
     TooLong,
 
-    #[error("Empty request")]
-    EmptyRequest,
-
     #[error("Invalid selector")]
     InvalidSelector,
 }
@@ -137,14 +134,13 @@ impl<R: tokio::io::AsyncRead + Unpin> RequestReader<R> {
         // ignored, because CR-LF is what separates frames.
         self.inner.next()
             .await
-            .unwrap_or(Err(RequestError::EmptyRequest))
+            .unwrap_or(Err(RequestError::InvalidSelector))
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use futures::executor::block_on;
     use std::io::Cursor;
 
     #[test]
@@ -183,12 +179,12 @@ mod test {
         assert!(decoder.decode(&mut buf).unwrap().is_none());
     }
 
-    #[test]
-    fn empty_reader() {
+    #[tokio::test]
+    async fn empty_reader() {
         let input = "";
         let reader = RequestReader::with_max_length(100, Cursor::new(input));
-        match block_on(reader.read_request()) {
-            Err(RequestError::EmptyRequest) => (),
+        match reader.read_request().await {
+            Err(RequestError::InvalidSelector) => (),
             other => panic!("{:?}", other),
         }
     }
