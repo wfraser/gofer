@@ -13,13 +13,28 @@ i
 iMaking a gopher out of Fe O .
 i                         2 3
 i
+iThis is a hand-written menu. If a selector points to a directory with a file named !menu, it will
+ibe read and interpreted as a menu.
+iIt allows a couple shortcuts to make life easier:
+i - 'i' info lines don't need to have a selector, host, and port specified; the server will make
+i   one up for you.
+i - Links that don't have a server and port specified will be filled in with the server's own
+i   hostname and port. In other words, links are site-internal by default.
+i - Blank lines are valid, and will be sent as an empty 'i' line.
+i - Do note that the file does need to be DOS-formatted, i.e. have CR-LF line endings.
+i
+iIf a directory does not have a !menu file, a directory listing will be generated from the files
+iin it, on the fly. Currently it just generates '0' (directory) and '1' (file) items, but it could
+ibe extended to recognize images and other file types some day.
+i
+iYou can browse the source code of the server here:
 1Source Code	/src
 i
 iThe following item links to HTTP using a 'h' type item and a URL:
-hGitHub link via URL	URL:https://github.com/wfraser/gofer.git
+hGitHub link via URL	URL:https://github.com/wfraser/gofer
 i
 iThis item links to HTTP using a selector with a HTTP/0.9 GET request:
-hGithub link via direct GET request	GET /wfraser/gofer.git	github.com	80
+hGithub link via direct GET request	GET /wfraser/gofer	github.com	80
 i
 iLinks to other Gopher sites:
 1Floodgap		gopher.floodgap.com	70
