@@ -20,3 +20,7 @@ hGitHub link via URL	URL:https://github.com/wfraser/gofer.git
 i
 iThis item links to HTTP using a selector with a HTTP/0.9 GET request:
 hGithub link via direct GET request	GET /wfraser/gofer.git	github.com	80
+i
+iLinks to other Gopher sites:
+1Floodgap		gopher.floodgap.com	70
+1Super-Dimensional Fortress		sdf.org	70
