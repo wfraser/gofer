@@ -37,7 +37,7 @@ async fn handle_request(config: &Config, req: Request) -> Response {
     } else if req.selector.starts_with("URL:") {
         return Response::Raw(html_redirect(&req.selector[4..]).into_bytes());
     } else if req.selector.starts_with('/') {
-        if req.selector == "/.." || req.selector.contains("/../") {
+        if req.selector == "/.." || req.selector.contains("/../") || req.selector.contains("//") {
             return Response::Error("directory traversal denied".into());
         }
         config.document_root.join(&req.selector[1..])
