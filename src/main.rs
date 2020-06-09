@@ -10,7 +10,7 @@ use crate::request::Request;
 use crate::request_stream::RequestStream;
 use crate::response::{Response, Menu, MenuItem, MenuItemDecoder};
 use crate::types::ItemType;
-use futures::stream::StreamExt;
+use futures::stream::{self, StreamExt};
 use std::path::Path;
 use tokio::fs::{self, File};
 use tokio::io;
@@ -55,7 +55,7 @@ async fn handle_request(config: &Config, req: Request) -> Response {
         let menu_path = path.join("!menu");
         match File::open(&menu_path).await {
             Ok(mut menu_file) => {
-                let mut menu = Menu { items: vec![] };
+                let mut items = vec![];
                 let mut framed = FramedRead::new(&mut menu_file, MenuItemDecoder::new());
                 let mut line = 0u32;
                 while let Some(item_result) = framed.next().await {
@@ -70,7 +70,7 @@ async fn handle_request(config: &Config, req: Request) -> Response {
                                     item.port = Some(config.port.to_string());
                                 }
                             }
-                            menu.items.push(item);
+                            items.push(item);
                         }
                         Err(e) => {
                             eprintln!("error in {:?} on line {}: {}",
@@ -80,7 +80,7 @@ async fn handle_request(config: &Config, req: Request) -> Response {
                         }
                     }
                 }
-                Response::Menu(menu)
+                Response::Menu(Menu::new(stream::iter(items)))
             }
             Err(e) if e.kind() == io::ErrorKind::NotFound => {
                 generate_menu(config, &path, &req.selector).await
@@ -101,10 +101,10 @@ async fn handle_request(config: &Config, req: Request) -> Response {
 async fn generate_menu(config: &Config, path: &Path, selector: &str) -> Response {
     match fs::read_dir(path).await {
         Ok(mut stream) => {
-            let mut menu = Menu { items: vec![
+            let mut items = vec![
                 MenuItem::info(format!("[{}{}]", &config.hostname, selector)),
                 MenuItem::info(""),
-            ]};
+            ];
             while let Some(entry_result) = stream.next().await {
                 match entry_result {
                     Ok(entry) => {
@@ -128,7 +128,7 @@ async fn generate_menu(config: &Config, path: &Path, selector: &str) -> Response
                             // TODO: file types for images, audio, etc. based on extensions.
                             ItemType::File
                         };
-                        menu.items.push(
+                        items.push(
                             MenuItem::new(
                                 typ,
                                 text,
@@ -142,7 +142,7 @@ async fn generate_menu(config: &Config, path: &Path, selector: &str) -> Response
                     }
                 }
             }
-            Response::Menu(menu)
+            Response::Menu(Menu::new(stream::iter(items)))
         }
         Err(e) => e.into(),
     }

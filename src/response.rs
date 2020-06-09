@@ -1,13 +1,13 @@
 use bytes::{Buf, BytesMut};
 use crate::types::ItemType;
 use futures::sink::SinkExt;
-use futures::stream::{self, StreamExt};
+use futures::stream::{Stream, StreamExt};
+use std::pin::Pin;
 use thiserror::Error;
 use tokio::fs::File;
 use tokio::io::{self, AsyncWrite, AsyncWriteExt};
 use tokio_util::codec::{Decoder, Encoder, FramedWrite};
 
-#[derive(Debug)]
 pub enum Response {
     Menu(Menu),
     File(File),
@@ -54,9 +54,16 @@ impl MenuItem {
     }
 }
 
-#[derive(Debug)]
 pub struct Menu {
-    pub items: Vec<MenuItem>,
+    items: Pin<Box<dyn Stream<Item = MenuItem>>>,
+}
+
+impl Menu {
+    pub fn new<S: Stream<Item = MenuItem> + 'static>(s: S) -> Self {
+        Self {
+            items: Box::pin(s),
+        }
+    }
 }
 
 impl Response {
@@ -64,7 +71,7 @@ impl Response {
         match self {
             Response::Menu(menu) => {
                 FramedWrite::new(&mut w, MenuItemEncoder)
-                    .send_all(&mut stream::iter(&menu.items).map(Ok))
+                    .send_all(&mut menu.items.by_ref().map(Ok))
                     .await?;
                 w.write_all(b".\r\n").await?;
             }
@@ -86,10 +93,10 @@ impl Response {
 
 struct MenuItemEncoder;
 
-impl Encoder<&MenuItem> for MenuItemEncoder {
+impl Encoder<MenuItem> for MenuItemEncoder {
     type Error = io::Error;
 
-    fn encode(&mut self, item: &MenuItem, dst: &mut BytesMut) -> Result<(), Self::Error> {
+    fn encode(&mut self, item: MenuItem, dst: &mut BytesMut) -> Result<(), Self::Error> {
         dst.extend_from_slice(&[item.typ.into_u8()]);
         dst.extend_from_slice(item.text.as_bytes());
         dst.extend_from_slice(b"\t");
