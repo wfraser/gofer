@@ -56,33 +56,33 @@ async fn handle_request(config: &Config, req: Request) -> Response {
     if meta.is_dir() {
         let menu_path = path.join("!menu");
         match File::open(&menu_path).await {
-            Ok(mut menu_file) => {
-                let mut items = vec![];
-                let mut framed = FramedRead::new(&mut menu_file, MenuItemDecoder::new());
-                let mut line = 0u32;
-                while let Some(item_result) = framed.next().await {
-                    line += 1;
-                    match item_result {
-                        Ok(mut item) => {
-                            if item.typ != ItemType::Info && item.typ != ItemType::Error {
-                                if item.host.is_none() {
-                                    item.host = Some(config.hostname.clone());
-                                }
-                                if item.port.is_none() {
-                                    item.port = Some(config.port.to_string());
-                                }
+            Ok(menu_file) => {
+                let config_rc = Rc::new(config.to_owned());
+                let items = FramedRead::new(menu_file, MenuItemDecoder::new())
+                    .enumerate()
+                    .filter_map(move |(line, result)| future::ready(
+                        match result {
+                            Ok(x) => Some(x),
+                            Err(e) => {
+                                eprintln!("error in {:?} on line {}: {}",
+                                    menu_path,
+                                    line + 1,
+                                    e);
+                                None
                             }
-                            items.push(item);
+                        }))
+                    .map(move |mut item| {
+                        if item.typ != ItemType::Info && item.typ != ItemType::Error {
+                            if item.host.is_none() {
+                                item.host = Some(config_rc.hostname.clone());
+                            }
+                            if item.port.is_none() {
+                                item.port = Some(config_rc.port.to_string());
+                            }
                         }
-                        Err(e) => {
-                            eprintln!("error in {:?} on line {}: {}",
-                                menu_path,
-                                line,
-                                e);
-                        }
-                    }
-                }
-                Response::Menu(Menu::new(stream::iter(items)))
+                        item
+                    });
+                Response::Menu(Menu::new(items))
             }
             Err(e) if e.kind() == io::ErrorKind::NotFound => {
                 generate_menu(&path, &req.selector, config).await
