@@ -1,4 +1,5 @@
 mod config;
+mod menu;
 mod request;
 mod request_stream;
 mod response;
@@ -6,9 +7,10 @@ mod types;
 
 use anyhow::{bail, Context, Result};
 use crate::config::Config;
+use crate::menu::{Menu, MenuItem, MenuItemDecoder};
 use crate::request::Request;
 use crate::request_stream::RequestStream;
-use crate::response::{Response, Menu, MenuItem, MenuItemDecoder};
+use crate::response::Response;
 use crate::types::ItemType;
 use futures::future;
 use futures::stream::{self, StreamExt};
@@ -58,7 +60,7 @@ async fn handle_request(config: &Config, req: Request) -> Response {
         match File::open(&menu_path).await {
             Ok(menu_file) => {
                 let config_rc = Rc::new(config.to_owned());
-                let items = FramedRead::new(menu_file, MenuItemDecoder::new())
+                let items = FramedRead::new(menu_file, MenuItemDecoder)
                     .enumerate()
                     .filter_map(move |(line, result)| future::ready(
                         match result {
