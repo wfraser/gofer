@@ -10,8 +10,10 @@ use crate::request::Request;
 use crate::request_stream::RequestStream;
 use crate::response::{Response, Menu, MenuItem, MenuItemDecoder};
 use crate::types::ItemType;
+use futures::future;
 use futures::stream::{self, StreamExt};
 use std::path::Path;
+use std::rc::Rc;
 use tokio::fs::{self, File};
 use tokio::io;
 use tokio_util::codec::FramedRead;
@@ -83,7 +85,7 @@ async fn handle_request(config: &Config, req: Request) -> Response {
                 Response::Menu(Menu::new(stream::iter(items)))
             }
             Err(e) if e.kind() == io::ErrorKind::NotFound => {
-                generate_menu(config, &path, &req.selector).await
+                generate_menu(&path, &req.selector, config).await
             }
             Err(e) => {
                 e.into()
@@ -98,51 +100,58 @@ async fn handle_request(config: &Config, req: Request) -> Response {
     }
 }
 
-async fn generate_menu(config: &Config, path: &Path, selector: &str) -> Response {
-    match fs::read_dir(path).await {
-        Ok(mut stream) => {
-            let mut items = vec![
-                MenuItem::info(format!("[{}{}]", &config.hostname, selector)),
-                MenuItem::info(""),
-            ];
-            while let Some(entry_result) = stream.next().await {
-                match entry_result {
-                    Ok(entry) => {
-                        let is_dir = match entry.file_type()
-                            .await
-                            .map(|ft| ft.is_dir())
-                        {
-                            Ok(b) => b,
-                            Err(e) => {
-                                eprintln!("error getting file type of {:?}: {}", entry.path(), e);
-                                continue;
-                            }
-                        };
-
-                        // TODO: if it's not representable as UTF-8, this will be bad.
-                        let text = entry.file_name().to_string_lossy().into_owned();
-                        let selector = selector.to_owned() + "/" + &text;
-                        let typ = if is_dir {
-                            ItemType::Directory
-                        } else {
-                            // TODO: file types for images, audio, etc. based on extensions.
-                            ItemType::File
-                        };
-                        items.push(
-                            MenuItem::new(
-                                typ,
-                                text,
-                                selector,
-                                config.hostname.clone(),
-                                config.port.to_string()));
-                    }
-                    Err(e) => {
-                        eprintln!("error iterating directory {:?}: {}", path, e);
-                        continue;
-                    }
-                }
+async fn direntry_menuitem(entry: fs::DirEntry, selector: Rc<String>, config: Rc<Config>)
+    -> Option<MenuItem>
+{
+    async fn inner(entry: fs::DirEntry, selector: &str, config: &Config) -> Option<MenuItem> {
+        let is_dir = match entry.file_type()
+            .await
+            .map(|ft| ft.is_dir())
+        {
+            Ok(b) => b,
+            Err(e) => {
+                eprintln!("error getting file type of {:?}: {}", entry.path(), e);
+                return None;
             }
-            Response::Menu(Menu::new(stream::iter(items)))
+        };
+
+        // TODO: if it's not representable as UTF-8, this will be bad.
+        let text = entry.file_name().to_string_lossy().into_owned();
+        let selector = selector.to_owned() + "/" + &text;
+        let typ = if is_dir {
+            ItemType::Directory
+        } else {
+            // TODO: file types for images, audio, etc. based on extensions.
+            ItemType::File
+        };
+        Some(MenuItem::new(
+            typ,
+            text,
+            selector,
+            config.hostname.clone(),
+            config.port.to_string()))
+    }
+    inner(entry, &selector, &config).await
+}
+
+
+async fn generate_menu(path: &Path, selector: &str, config: &Config) -> Response {
+    match fs::read_dir(path).await {
+        Ok(stream) => {
+            let header = stream::iter(vec![
+                MenuItem::info(format!("[{}{}]", &config.hostname, selector)),
+                MenuItem::info("")
+            ]);
+
+            let selector_rc = Rc::new(selector.to_owned());
+            let config_rc = Rc::new(config.to_owned());
+            let items = stream
+                .filter_map(|result| future::ready(result.ok()))
+                .filter_map(move |entry| {
+                    direntry_menuitem(entry, selector_rc.clone(), config_rc.clone())
+                });
+
+            Response::Menu(Menu::new(header.chain(items)))
         }
         Err(e) => e.into(),
     }
