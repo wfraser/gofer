@@ -75,11 +75,15 @@ async fn handle_request(config: &Config, req: Request) -> Response {
                         }))
                     .map(move |mut item| {
                         if item.typ != ItemType::Info && item.typ != ItemType::Error {
-                            if item.host.is_none() {
-                                item.host = Some(config_rc.hostname.clone());
-                            }
                             if item.port.is_none() {
-                                item.port = Some(config_rc.port.to_string());
+                                if item.host.is_none() {
+                                    item.host = Some(config_rc.hostname.clone());
+                                    item.port = Some(config_rc.port.to_string());
+                                } else {
+                                    item.port = Some("70".to_owned());
+                                }
+                            } else if item.host.is_none() {
+                                item.host = Some(config_rc.hostname.clone());
                             }
                         }
                         item

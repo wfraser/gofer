@@ -2,7 +2,7 @@ iHello there!
 i~~~~~~~~~~~~
 i
 i GGGG         FFFFFF
-iG             FF    
+iG             FF
 iG             FF    EEEE
 iG GGG   OOO   FFFFF EE    RRRR
 iG   G  O   O  FF    EEEE  R
@@ -22,8 +22,6 @@ i - Links that don't have a server and port specified will be filled in
 i   with the server's own hostname and port. In other words, links are
 i   site-internal by default.
 i - Blank lines are valid, and will be sent as an empty 'i' line.
-i - Do note that the file does need to be DOS-formatted, i.e. have
-i   CR-LF line endings.
 i
 iIf a directory does not have a !menu file, a directory listing will be
 igenerated from the files in it, on the fly. Currently it just
