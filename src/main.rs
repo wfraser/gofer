@@ -1,4 +1,5 @@
 mod config;
+mod fs;
 mod menu;
 mod request;
 mod request_stream;
@@ -7,6 +8,7 @@ mod types;
 
 use anyhow::{bail, Context, Result};
 use crate::config::Config;
+use crate::fs::{DirEntry, FileType};
 use crate::menu::{Menu, MenuItem, MenuItemDecoder};
 use crate::request::Request;
 use crate::request_stream::RequestStream;
@@ -16,8 +18,6 @@ use futures::future;
 use futures::stream::{self, StreamExt};
 use std::path::Path;
 use std::rc::Rc;
-use tokio::fs::{self, File};
-use tokio::io;
 use tokio_util::codec::FramedRead;
 
 fn parse_args() -> Result<Config> {
@@ -59,67 +59,60 @@ async fn handle_request(config: &Config, req: Request) -> Response {
         return Response::Error("not found".into());
     };
 
-    eprintln!("looking up {:?}", path);
-    let meta = match fs::metadata(&path).await {
-        Ok(meta) => meta,
-        Err(e) => return e.into(),
-    };
-
-    if meta.is_dir() {
-        let menu_path = path.join("!menu");
-        match File::open(&menu_path).await {
-            Ok(menu_file) => {
-                let config_rc = Rc::new(config.to_owned());
-                let items = FramedRead::new(menu_file, MenuItemDecoder)
-                    .enumerate()
-                    .filter_map(move |(line, result)| future::ready(
-                        match result {
-                            Ok(x) => Some(x),
-                            Err(e) => {
-                                eprintln!("error in {:?} on line {}: {}",
-                                    menu_path,
-                                    line + 1,
-                                    e);
-                                None
-                            }
-                        }))
-                    .map(move |mut item| {
-                        if item.typ != ItemType::Info && item.typ != ItemType::Error {
-                            if item.port.is_none() {
-                                if item.host.is_none() {
-                                    item.host = Some(config_rc.hostname.clone());
-                                    item.port = Some(config_rc.port.to_string());
-                                } else {
-                                    item.port = Some("70".to_owned());
-                                }
-                            } else if item.host.is_none() {
-                                item.host = Some(config_rc.hostname.clone());
-                            }
+    match fs::lookup(&path).await {
+        Ok(FileType::Menu { file: menu_file, path: menu_path }) => {
+            eprintln!("menu {:?}", menu_path);
+            let config_rc = Rc::new(config.to_owned());
+            let items = FramedRead::new(menu_file, MenuItemDecoder)
+                .enumerate()
+                .filter_map(move |(line, result)| future::ready(
+                    match result {
+                        Ok(x) => Some(x),
+                        Err(e) => {
+                            eprintln!("error in {:?} on line {}: {}",
+                                menu_path,
+                                line + 1,
+                                e);
+                            None
                         }
-                        item
-                    });
-                Response::Menu(Menu::new(items))
-            }
-            Err(e) if e.kind() == io::ErrorKind::NotFound => {
-                generate_menu(&path, &req.selector, config).await
-            }
-            Err(e) => {
-                e.into()
-            }
+                    }))
+                .map(move |mut item| {
+                    if item.typ != ItemType::Info && item.typ != ItemType::Error {
+                        if item.port.is_none() {
+                            if item.host.is_none() {
+                                item.host = Some(config_rc.hostname.clone());
+                                item.port = Some(config_rc.port.to_string());
+                            } else {
+                                item.port = Some("70".to_owned());
+                            }
+                        } else if item.host.is_none() {
+                            item.host = Some(config_rc.hostname.clone());
+                        }
+                    }
+                    item
+                });
+            Response::Menu(Menu::new(items))
         }
-    } else {
-        match tokio::fs::File::open(&path).await {
-            Ok(file) => Response::File(file),
-            Err(e) if e.kind() == io::ErrorKind::NotFound => Response::Error("not found".into()),
-            Err(e) => e.into(),
+        Ok(FileType::Directory) => {
+            eprintln!("directory {:?}", path);
+            generate_menu(&path, &req.selector, config).await
         }
+        Ok(FileType::File(file)) => {
+            eprintln!("file {:?}", path);
+            Response::File(file)
+        }
+        Ok(FileType::NotFound) => {
+            eprintln!("not found {:?}", path);
+            Response::Error("not found".into())
+        }
+        Err(e) => e.into(),
     }
 }
 
-async fn direntry_menuitem(entry: fs::DirEntry, selector: Rc<String>, config: Rc<Config>)
+async fn direntry_menuitem(entry: DirEntry, selector: Rc<String>, config: Rc<Config>)
     -> Option<MenuItem>
 {
-    async fn inner(entry: fs::DirEntry, selector: &str, config: &Config) -> Option<MenuItem> {
+    async fn inner(entry: DirEntry, selector: &str, config: &Config) -> Option<MenuItem> {
         let is_dir = match entry.file_type()
             .await
             .map(|ft| ft.is_dir())
