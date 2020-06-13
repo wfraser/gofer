@@ -19,8 +19,8 @@ pub enum RequestError {
     #[error("Request line too long")]
     TooLong,
 
-    #[error("Invalid selector")]
-    InvalidSelector,
+    #[error("Invalid selector: {0}")]
+    InvalidSelector(String),
 }
 
 pub struct RequestDecoder {
@@ -86,9 +86,11 @@ impl Decoder for RequestDecoder {
                 self.finished = true;
                 Ok(Some(Request { selector: line.to_owned() }))
             }
-            Some(Err(_offset)) => {
+            Some(Err(offset)) => {
                 // Invalid selector.
-                Err(RequestError::InvalidSelector)
+                let msg = format!("selector {:?} contains invalid characters at {}",
+                    String::from_utf8_lossy(&buf), offset);
+                Err(RequestError::InvalidSelector(msg))
             }
             None if buf.len() > self.max_length => {
                 self.finished = true;
@@ -106,7 +108,7 @@ impl Decoder for RequestDecoder {
             Some(request) => Ok(Some(request)),
             None => {
                 // Request not terminated with CRLF.
-                Err(RequestError::InvalidSelector)
+                Err(RequestError::InvalidSelector("missing CR-LF".into()))
             }
         }
     }
@@ -134,7 +136,7 @@ impl<R: tokio::io::AsyncRead + Unpin> RequestReader<R> {
         // ignored, because CR-LF is what separates frames.
         self.inner.next()
             .await
-            .unwrap_or(Err(RequestError::InvalidSelector))
+            .unwrap_or(Err(RequestError::InvalidSelector("missing CR-LF".into())))
     }
 }
 
