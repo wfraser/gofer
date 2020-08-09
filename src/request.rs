@@ -63,10 +63,7 @@ impl Decoder for RequestDecoder {
             .windows(2)
             .enumerate()
             .filter_map(|(i, pair)| {
-                let invalid = |c| match c {
-                    b'\r' | b'\n' | b'\t' | b'\0' => true,
-                    _ => false,
-                };
+                let invalid = |c| matches!(c, b'\r' | b'\n' | b'\t' | b'\0');
                 match pair {
                     [b'\r', b'\n'] => Some(Ok(i)),
                     [first, b'\r'] => if invalid(*first) { Some(Err(i)) } else { None },
@@ -136,7 +133,7 @@ impl<R: tokio::io::AsyncRead + Unpin> RequestReader<R> {
         // ignored, because CR-LF is what separates frames.
         self.inner.next()
             .await
-            .unwrap_or(Err(RequestError::InvalidSelector("missing CR-LF".into())))
+            .unwrap_or_else(|| Err(RequestError::InvalidSelector("missing CR-LF".into())))
     }
 }
 
