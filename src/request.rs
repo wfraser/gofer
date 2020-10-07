@@ -183,7 +183,7 @@ mod test {
         let input = "";
         let reader = RequestReader::with_max_length(100, Cursor::new(input));
         match reader.read_request().await {
-            Err(RequestError::InvalidSelector) => (),
+            Err(RequestError::InvalidSelector(_)) => (),
             other => panic!("{:?}", other),
         }
     }
@@ -194,7 +194,7 @@ mod test {
             ($e:expr) => {
                 let mut decoder = RequestDecoder::with_max_length(100);
                 match decoder.decode(&mut BytesMut::from("abcd\ref")) {
-                    Err(RequestError::InvalidSelector) => (),
+                    Err(RequestError::InvalidSelector(_)) => (),
                     other => panic!("unexpected result {:?}", other),
                 }
             }
