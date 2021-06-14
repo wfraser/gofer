@@ -1,5 +1,5 @@
 use bytes::BytesMut;
-use tokio::stream::StreamExt;
+use tokio_stream::StreamExt;
 use thiserror::Error;
 use tokio_util::codec::Decoder;
 

@@ -1,6 +1,5 @@
 use crate::request::{Request, RequestError, RequestReader};
 use std::io;
-use tokio::stream::StreamExt;
 use tokio::net::{TcpListener, ToSocketAddrs};
 use tokio::net::tcp::OwnedWriteHalf;
 
@@ -17,13 +16,9 @@ impl RequestStream {
 
     pub async fn next_request(&mut self) -> (Result<Request, RequestError>, OwnedWriteHalf) {
         let conn = loop {
-            let result = self.listener.incoming()
-                .next()
-                .await
-                .expect("unexpected end of connection stream from TcpListener");
-            match result {
-                Ok(conn) => {
-                    eprintln!("got connection: {:?}", conn);
+            match self.listener.accept().await {
+                Ok((conn, remote_addr)) => {
+                    eprintln!("got connection from {:?}", remote_addr);
                     break conn
                 }
                 Err(e) => {

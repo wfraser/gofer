@@ -18,6 +18,7 @@ use futures::future;
 use futures::stream::{self, StreamExt};
 use std::path::Path;
 use std::rc::Rc;
+use tokio_stream::wrappers::ReadDirStream;
 use tokio_util::codec::FramedRead;
 
 fn parse_args() -> Result<Config> {
@@ -154,7 +155,7 @@ async fn generate_menu(path: &Path, selector: &str, config: &Config) -> Response
 
             let selector_rc = Rc::new(selector.to_owned());
             let config_rc = Rc::new(config.to_owned());
-            let items = stream
+            let items = ReadDirStream::new(stream)
                 .filter_map(|result| future::ready(result.ok()))
                 .filter_map(move |entry| {
                     direntry_menuitem(entry, selector_rc.clone(), config_rc.clone())
