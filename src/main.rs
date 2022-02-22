@@ -21,6 +21,9 @@ use std::rc::Rc;
 use tokio_stream::wrappers::ReadDirStream;
 use tokio_util::codec::FramedRead;
 
+// Accepted connections waiting on reading a full request.
+pub const MAX_QUEUED_REQUESTS: usize = 50;
+
 fn parse_args() -> Result<Config> {
     match std::env::args_os().nth(1) {
         Some(path) => {
