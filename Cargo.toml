@@ -2,7 +2,7 @@
 name = "gofer"
 version = "0.1.0"
 authors = ["Bill Fraser <wfraser@codewise.org>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 anyhow = "1.0"
@@ -12,5 +12,5 @@ serde = { version = "1.0", features = ["derive"] }
 thiserror = "1.0"
 tokio = { version = "1.6", features = ["fs", "io-util", "macros", "net", "rt-multi-thread"] }
 tokio-stream = { version = "0.1.6", features = ["fs"] }
-tokio-util = { version = "0.6", features = ["codec"] }
+tokio-util = { version = "0.7", features = ["codec"] }
 toml = "0.5"

@@ -3,7 +3,7 @@ pub enum ItemType {
     // RFC 1436:
     File,
     Directory,
-    CSO,
+    Cso,
     Error,
     BinHex,
     DosBinary,
@@ -18,7 +18,7 @@ pub enum ItemType {
 
     // Unofficial types:
     Document,
-    HTML,
+    Html,
     Info,
     Audio,
 
@@ -33,7 +33,7 @@ impl ItemType {
             // RFC 1436:
             b'0' => Self::File,
             b'1' => Self::Directory,
-            b'2' => Self::CSO,
+            b'2' => Self::Cso,
             b'3' => Self::Error,
             b'4' => Self::BinHex,
             b'5' => Self::DosBinary,
@@ -48,11 +48,11 @@ impl ItemType {
 
             // Unofficial:
             b'd' => Self::Document,
-            b'h' => Self::HTML,
+            b'h' => Self::Html,
             b'i' => Self::Info,
             b's' => Self::Audio,
 
-            #[allow(overlapping_patterns)]
+            #[allow(overlapping_range_endpoints)]
             b'0' ..= b'Z' => Self::Reserved(c),
 
             _ => Self::Other(c),
@@ -64,7 +64,7 @@ impl ItemType {
             // RFC 1436:
             Self::File => b'0',
             Self::Directory => b'1',
-            Self::CSO => b'2',
+            Self::Cso => b'2',
             Self::Error => b'3',
             Self::BinHex => b'4',
             Self::DosBinary => b'5',
@@ -79,7 +79,7 @@ impl ItemType {
 
             // Unofficial:
             Self::Document => b'd',
-            Self::HTML => b'h',
+            Self::Html => b'h',
             Self::Info => b'i',
             Self::Audio => b's',
 

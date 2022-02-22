@@ -86,7 +86,7 @@ impl Decoder for RequestDecoder {
             Some(Err(offset)) => {
                 // Invalid selector.
                 let msg = format!("selector {:?} contains invalid characters at {}",
-                    String::from_utf8_lossy(&buf), offset);
+                    String::from_utf8_lossy(buf), offset);
                 Err(RequestError::InvalidSelector(msg))
             }
             None if buf.len() > self.max_length => {
