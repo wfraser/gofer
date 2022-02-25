@@ -1,6 +1,7 @@
+use crate::bounded_futures_unordered::BoundedFuturesUnordered;
 use crate::request::{Request, RequestError, RequestReader};
 use futures::future::FutureExt;
-use futures::stream::{FuturesUnordered, StreamExt};
+use futures::stream::StreamExt;
 use std::future::Future;
 use std::pin::Pin;
 use std::io;
@@ -10,14 +11,14 @@ use tokio::net::tcp::OwnedWriteHalf;
 pub struct RequestStream {
     listener: TcpListener,
 
-    pending: FuturesUnordered<ReqWritePair>,
+    pending: BoundedFuturesUnordered<ReqWritePair>,
 }
 
 impl RequestStream {
     pub async fn bind<A: ToSocketAddrs>(addr: A) -> io::Result<Self> {
         Ok(Self {
             listener: TcpListener::bind(addr).await?,
-            pending: FuturesUnordered::new(),
+            pending: BoundedFuturesUnordered::new(crate::MAX_QUEUED_REQUESTS),
         })
     }
 
@@ -28,12 +29,9 @@ impl RequestStream {
             }
             tokio::select! {
                 Some((req_result, tx)) = self.pending.next(), if !self.pending.is_empty() => {
-
                     return (req_result, tx);
                 }
-                accept_res = self.listener.accept(),
-                    if self.pending.len() < crate::MAX_QUEUED_REQUESTS =>
-                {
+                accept_res = self.listener.accept() => {
                     match accept_res {
                         Ok((conn, remote_addr)) => {
                             eprintln!("got connection from {:?}", remote_addr);

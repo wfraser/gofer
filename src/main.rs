@@ -1,3 +1,4 @@
+mod bounded_futures_unordered;
 mod config;
 mod fs;
 mod menu;

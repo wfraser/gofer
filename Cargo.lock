@@ -116,6 +116,7 @@ dependencies = [
  "anyhow",
  "bytes",
  "futures",
+ "pin-project-lite",
  "serde",
  "thiserror",
  "tokio",
