@@ -34,7 +34,7 @@ impl RequestStream {
                 accept_res = self.listener.accept() => {
                     match accept_res {
                         Ok((conn, remote_addr)) => {
-                            eprintln!("got connection from {:?}", remote_addr);
+                            eprintln!("got connection from {remote_addr:?}");
                             let (rx, tx) = conn.into_split();
                             self.pending.push(Box::pin(
                                 RequestReader::with_max_length(1024, rx)
@@ -42,7 +42,7 @@ impl RequestStream {
                                     .map(move |req_result| (req_result, tx))));
                         }
                         Err(e) => {
-                            eprintln!("error accepting connection: {}", e);
+                            eprintln!("error accepting connection: {e}");
                         }
                     }
                 }

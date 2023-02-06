@@ -15,7 +15,7 @@ pub enum Response {
 
 impl From<io::Error> for Response {
     fn from(e: io::Error) -> Response {
-        eprintln!("I/O error: {}", e);
+        eprintln!("I/O error: {e}");
         // Don't leak details of the error to clients.
         Response::Error("I/O error".to_owned())
     }

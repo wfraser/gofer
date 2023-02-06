@@ -166,7 +166,7 @@ mod test {
         let mut buf = BytesMut::from("foobar");
         match decoder.decode(&mut buf) {
             Err(RequestError::TooLong) => (),
-            other => panic!("unexpected result {:?}", other),
+            other => panic!("unexpected result {other:?}"),
         }
         assert!(decoder.finished);
     }
@@ -184,7 +184,7 @@ mod test {
         let reader = RequestReader::with_max_length(100, Cursor::new(input));
         match reader.read_request().await {
             Err(RequestError::InvalidSelector(_)) => (),
-            other => panic!("{:?}", other),
+            other => panic!("{other:?}"),
         }
     }
 

@@ -265,7 +265,7 @@ mod test {
         let mut buf = BytesMut::from("\t\r\n");
         match MenuItemDecoder.decode(&mut buf) {
             Err(MenuItemParseError::Message(_)) => (),
-            other => panic!("unexpected {:?}", other),
+            other => panic!("unexpected {other:?}"),
         }
     }
 
@@ -274,7 +274,7 @@ mod test {
         let mut buf = BytesMut::from("itext\tselector\thost\tport\tspaghetti\r\n");
         match MenuItemDecoder.decode(&mut buf) {
             Err(MenuItemParseError::Message(_)) => (),
-            other => panic!("unexpected {:?}", other),
+            other => panic!("unexpected {other:?}"),
         }
     }
 
@@ -283,7 +283,7 @@ mod test {
         let mut buf = BytesMut::from("itext\tselector\thost\tport"); // missing CR-LF
         match MenuItemDecoder.decode(&mut buf) {
             Ok(None) => (),
-            other => panic!("unexpected {:?}", other),
+            other => panic!("unexpected {other:?}"),
         }
     }
 }
