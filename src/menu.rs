@@ -7,11 +7,11 @@ use tokio::io;
 use tokio_util::codec::{Decoder, Encoder};
 
 pub struct Menu {
-    pub items: Pin<Box<dyn Stream<Item = MenuItem>>>,
+    pub items: Pin<Box<dyn Stream<Item = MenuItem> + Send + Sync + 'static>>,
 }
 
 impl Menu {
-    pub fn new<S: Stream<Item = MenuItem> + 'static>(s: S) -> Self {
+    pub fn new<S: Stream<Item = MenuItem> + Send + Sync + 'static>(s: S) -> Self {
         Self {
             items: Box::pin(s),
         }
